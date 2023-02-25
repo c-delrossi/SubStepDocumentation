@@ -1,0 +1,41 @@
+\chapter{Quality Measures}
+
+This chapter describes the various quality measures that were put in place to make sure that the code is as clean as possible and working as expected.
+
+\section{Coding Guidelines}
+
+\begin{itemize}
+    \item General
+    \begin{itemize}
+        \item Code needs to be committed frequently with descriptive commit messages.
+        \item Side effects should be avoided whenever possible.
+        \item Comments may only be used if they are helpful.
+        \item Global variables should be avoided if possible.
+        \item Exceptions are preferred over error codes.
+        \item Nesting should not be deeper than 2 levels.
+        \item No duplicate code. (DRY)
+        \item Functions should be kept short (less than 11 lines).
+        \item Create feature branches, before every merge, tests must be run.
+    \end{itemize}
+    \item Formatting
+    \begin{itemize}
+        \item Line length should not exceed 120 characters.
+        \item Style guide: ESLint + AirBnB
+        \item Code must be auto-formatted before being committed.
+        \item Code must pass all tests before being committed.
+    \end{itemize}
+    \item Naming
+    \begin{itemize}
+        \item Function names should be verbs.
+        \item Class names should be nouns.
+        \item Longer, more descriptive names are preferred over short ones.
+        \item No abbreviations in names.
+        \item No 1-character names.
+    \end{itemize}
+\end{itemize}
+
+\section{Test Concept}
+
+\section{Workflow}
+
+Pipelines?

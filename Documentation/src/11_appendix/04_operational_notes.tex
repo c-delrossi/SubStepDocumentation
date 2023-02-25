@@ -1,0 +1,53 @@
+\chapter{Operational Notes}
+
+\instructions{
+    Vor allem bei Softwareprojekten: Gehen Sie auf folgende Punkte ein (bei grösserer Dokumentation
+    verweisen Sie auf den Anhang).
+    \begin{itemize}
+        \item Verwendete SDK, IDE und Werkzeuge
+        \item Hinweise zu CI/CD
+        \item Installationsanleitung / Bedienungsanleitung
+        \item Test-Logs
+        \item Bei Systemen mit User Interfaces: Dokumentation der Usability Tests
+    \end{itemize}
+}
+
+
+\section{CI/CD}
+
+\subsection{Automated Documentation Building}
+
+A GitHub Action that automatically builds a PDF from the \LaTeX-files has been created.
+This ensures that the documentation can be easily accessed and viewed without requiring a \LaTeX-environment.
+The first step (starting on line 11) compiles the document and creates a PDF.
+The second step (starting on line 16) uploads the PDF so that it can be downloaded from the GitHub repository.
+
+\begin{Verbatim}[samepage=true,numbers=left,xleftmargin=7.5mm]
+name: Build LaTeX
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Compile Document
+        uses: xu-cheng/latex-action@v2
+        with:
+          working_directory: ./Documentation/src
+          root_file: main.tex
+      - name: Upload PDF
+        uses: actions/upload-artifact@v3
+        with:
+          name: PDF
+          path: ./Documentation/src/main.pdf
+\end{Verbatim}
+
+
+\section{Installation instructions}
+
+\section{Test-logs}
+
+            

@@ -1,0 +1,60 @@
+% Template for SE Project software documentation
+% (c) Farhad Mehta 2021
+
+\documentclass[11pt, oneside, a4paper]{book}
+
+\input{custom}
+
+\hypersetup{
+    pdfauthor={Farhad Mehta, Thomas Kälin},
+    pdftitle={Template for SE Project software documentation},
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Overleaf Example},
+    pdfpagemode=FullScreen,
+}
+
+\addbibresource{./bibliography.bib}
+
+\begin{document}
+\pagestyle{empty}
+
+\frontmatter
+
+\input{00_Title_Abstract_etc/title-page}
+\input{00_Title_Abstract_etc/abstract.tex}
+\tableofcontents
+
+\mainmatter
+
+\part{Introduction}
+\input{01_introduction/01_management_summary.tex}
+
+\part{Analysis}
+\input{02_analysis/01_domain-analysis}
+\input{02_analysis/02_requirements}
+
+\part{Design}
+\input{03_design/01_architecture.tex}
+
+\part{Implementation}
+\input{04_implementation/04_quality-measures.tex}
+
+\part{Discussion}
+\input{05_discussion/01_results.tex}
+\input{05_discussion/02_conclusion.tex}
+
+\part{References}
+\input{10_references/01_tableoffigures.tex}
+\printbibliography[title=References]
+
+\part{Appendix}
+\input{11_appendix/01_project-management.tex}
+\input{11_appendix/02_project-plan.tex}
+\input{11_appendix/03_time_management.tex}
+\input{11_appendix/04_operational_notes.tex}
+\input{11_appendix/05_personal_notes.tex}
+
+\end{document}
