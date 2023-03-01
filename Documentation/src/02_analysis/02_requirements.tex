@@ -1,30 +1,37 @@
 \chapter{Requirements}
 
-\section {Use Case Diagram or User Stories}
-
 \section{Functional Requirements}
 
+The following table lists the identified functional requirements.
+The MVP includes FR1, FR3, FR4, FR5, and FR6.
+
 \begin{table}[h!]
     \makebox[\textwidth][c]{
-        \begin{tabular}{ p{5cm} p{9.15cm}}
-            \textbf{Use Case}                                 & \textbf{Description}                                                                                                                                                  \\ \hline 
-            & \\                                                                                                                                                                              
-            \textbf{UC1} & Desc. 1                                                                                                 \\
+        \begin{tabular}{ p{1.5cm} p{12.65cm}}
+            \textbf{FR} & \textbf{Description} \\ \hline \\                                                                                                                                                                              
+            \textbf{FR 1} & The user can specify functions that should not be stepped through and instead derived in a single step. \\
+            \textbf{FR 2} & The user can control the derivation flow in such a way, that they can skip the derivation for certain redexes interactively. \\
+            \textbf{FR 3} & The user can step through the reduction line by line. \\
+            \textbf{FR 4} & The user can make the derivation run through to the end without requiring any interaction. \\
+            \textbf{FR 5} & The tool supports a verbose variant, that indicates which function has been applied. \\
+            \textbf{FR 6} & The user can import user-defined files and step through functions defined in these files. \\
         \end{tabular}
     }
-    \label{tab:UCTable}
+    \label{tab:functionalRequirements}
 \end{table}
-\pagebreak
 
 \section {Non-Functional Requirements}
-The following non-functional requrirements (NFRs) were derived from the requirements on accessibility, useability, privacy, domain specifications and engineering specifications.
-    
+
+This section contains the NFRs, that are prioritized from 1 to 3, where 1 is the highest priority and 3 the lowest.
+
 \begin{table}[h!]
     \makebox[\textwidth][c]{
-        \begin{tabular}{ |p{1.3cm} |p{9cm} |p{5cm} |p{0.85cm}|}
+        \begin{tabular}{ |p{1.3cm} |p{7cm} |p{7cm} |p{0.85cm}|}
             \hline
             \textbf{Nr.} & \textbf{Description} & \textbf{Measurement}  & \textbf{Prio} \\ \hline                                                                        
-            NFR1         & Desc. 1  & Measurement 1 & Prio. 1 \\ \hline
+            NFR1         & The tool is usable for people with little experience in functional programming.  & The derivation of a user-defined function takes max. one import command and one step command. The function is defined in one file and depends only on other functions in the same file. &  1 \\ \hline
+            NFR2         & The tool provides an open API or CLI, to open it up to additional UIs. & & 3 \\
+            \hline
         \end{tabular}
     }
     \label{tab:NFRs}
