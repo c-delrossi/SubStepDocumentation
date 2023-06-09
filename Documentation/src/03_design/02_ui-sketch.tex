@@ -54,8 +54,8 @@ The previous derivation looks like the following in verbose mode:
 \section{Hiding Variant}
 
 The hiding variant allows the user to define functions, that should be derived in one step, thus hiding the details of the derivation.
-The hiding variant can be used in combination with either verbose or base variant.
-An example for this can be seen in the following derivation (regular on the left side and hiding on the right side):
+The hiding variant can be used in combination with either the verbose or base variant.
+An example of this can be seen in the following derivation (regular on the left side and hiding on the right side):
 
 \begin{verbatim}
 > step -v fib (S (S (S Z)))         | > step -v -s (+) fib (S (S (S Z)))
@@ -90,10 +90,10 @@ The manual variant is similar to the previous variants.
 The output can be the same as any of the previous variants, the difference here is that the user can step through the derivation manually.
 So after entering the step command, the first line of the derivation is displayed.
 The user can then advance the derivation with the enter key or other commands step by step.
-With this variant the user can skip parts of the derivation interactively and slowly step through.
+With this variant, the user can skip parts of the derivation interactively and slowly step through.
 
 In a second step, if possible, the redexes should be highlighted, allowing the user to skip certain redexes and go straight to the interesting derivations.
-In this example the redexes are underlined with the tilde symbol and assigned numbers, which can be used in commands like goto, which skips all derivation steps until the specified redex is reached.
+In this example, the redexes are underlined with the tilde symbol and assigned numbers, which can be used in commands like goto, which skips all derivation steps until the specified redex is reached.
 
 \begin{verbatim}
 > step -m -v fib (S (S (S Z)))
@@ -125,6 +125,6 @@ Interactive commands could include commands like the following:
     \item enter: advance one line
     \item goto x: skip ahead to redex x
     \item step x: advance x lines
-    \item q/quit: cancel stepping / exit the stepper
-    \item continue: continue the stepping until end is reached
+    \item q/quit: cancel stepping/exit the stepper
+    \item continue: continue the stepping until the end is reached
 \end{itemize}
