@@ -62,3 +62,14 @@ Since I value the time-saving aspect of the first option,
 especially because this Thesis is done as individual work,
 I decided to go for a command-line application.
 
+\subsection{Sharing}
+Haskell's lazy evaluation makes use of sharing,
+so the same expression doesn't have to be reduced multiple times despite using the leftmost outermost strategy.
+For the Substitution Stepper, however,
+I have decided to ignore this feature.
+This removes the need for a heap containing all the evaluated expressions.
+Since no heap is needed it is also easier to display the stepped terms and probably also less confusing for people who are new to Haskell.
+Of course, this has the drawback of not being entirely accurate to the derivation strategy used by Haskell.
+Despite the slight inaccuracy I went for the option without sharing,
+as I value the simplicity of an approach without sharing more than the accuracy
+and I think that it has more didactic value for Haskell newbies.
