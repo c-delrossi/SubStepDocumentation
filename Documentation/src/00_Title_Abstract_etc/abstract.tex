@@ -1,6 +1,6 @@
 \chapter*{Abstract}
 
-With functional programming languages being taught at Universities and being put to use in some projects,
+With functional programming languages becoming more widespread and being taught at Universities,
 many programmers will eventually get in contact with them.
 Since functional programs can be very different from imperative ones,
 especially due to the heavy reliance on recursion,
@@ -9,6 +9,8 @@ this could be very interesting for all the people that are not yet familiar with
 \ \\
 While functional languages like Haskell have debuggers,
 they are not as user-friendly and don't offer as much insight as debuggers for imperative languages.
+The internal state of the program is usually not displayed very comprehensibly,
+which leads to the not being very useful for learning processes.
 
 \ \\
 The goal of the Haskell Substitution Stepper is to provide the user with the capability to step through a Haskell program
@@ -18,5 +20,7 @@ This is supposed to solve the usability problems that the regular Haskell debugg
 \ \\
 For this, we came up with an application where the user can specify a function that he would like to step through
 and the application would load this function and then use Haskell's rules to step through.
+The user can see the whole internal state of the term that is being stepped through
+and the highlighting of the changes makes it easy to see what happens in each step.
 The user can choose between different modes of derivation and can control the flow of the derivation.
 The addition of helpful commands also allows the user to skip certain parts of the derivation that might not be interesting to them.
