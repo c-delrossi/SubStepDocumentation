@@ -1,0 +1,620 @@
+\chapter{Problem Analysis}
+This chapter outlines the topics that needed to be researched before the implementation of the Substitution Stepper could start.
+It describes the findings and problems that were encountered and describes how they could be solved.
+
+\section{Understanding Core}
+Before Haskell code is transformed into byte- or machine code,
+identifiers are renamed to unique identifiers, types are checked and the code is desugared and simplified.
+These operations result in Core code, which is the code that the application is built to step.
+This section highlights the advantages and drawbacks of stepping Core code,
+shows the differences between Haskell code and Core code,
+and explains what the different expressions mean in Core.
+
+\subsection{Why Core?}
+Core has many advantages over Haskell code,
+as it is already desugared (i.e. some high-level features are removed) and the function identifiers have been made unique.
+Since many Haskell features are simplified it is a lot easier to implement the stepping.
+For example, the effort that needs to be put in to find the right class instance for a datatype is reduced.
+Another example that is simplified is infix operators and functions.
+These are translated to prefix function notation, which makes it easier to step since all of the function applications and operations are uniform.
+Function bindings are translated into lambdas, which are easier to handle,
+and multi-argument lambdas are translated into nested single-argument lambdas which are also simpler to apply.
+These are only a few of the simplifications that are made during the desugaring process.
+
+However, these simplifications can also be drawbacks,
+as they make the pretty printing of the Core expressions back into regular Haskell expressions quite a bit more challenging.
+
+\subsection{Core Expressions}
+This subsection contains information about the structure of the Core \texttt{Expr} datatype,
+which is used to represent Core code.
+
+\begin{figure}[ht!]
+\begin{verbatim}
+ data Expr b
+ = Var   Id
+ | Lit   Literal
+ | App   (Expr b) (Expr b)
+ | Lam   b (Expr b)
+ | Let   (Bind b) (Expr b)
+ | Case  (Expr b) b Type [Alt b]
+ | Cast  (Expr b) CoercionR
+ | Type  Type
+ | Tick  CoreTickish (Expr b)
+ | Coercion Coercion
+\end{verbatim}
+    \caption{The Expr datatype}
+\end{figure}
+
+\begin{figure}[ht!]
+\begin{verbatim}
+ data AltCon
+     = DataAlt DataCon
+     | LitAlt  Literal
+     | DEFAULT
+ 
+ type Alt = (AltCon, [Var], Expr)
+\end{verbatim}
+    \caption{The datatype used for different options for Case Expressions}
+\end{figure}
+
+\begin{figure}[ht!]
+    \begin{verbatim}
+        data Bind
+            = NonRec Var Expr
+            | Rec [(Var, Expr)]
+    \end{verbatim}
+    \caption{The datatype used for let bindings}
+\end{figure}
+
+\begin{description}
+    \item[Var] A \texttt{Var} corresponds to a fully evaluated expression and can - by itself - not be further reduced.
+        An example of this is an argument-free constructor of a datatype, like \texttt{Empty} for the datatype \texttt{data List a = Cons a (List a) | Empty}
+    \item[Lit] A \texttt{Lit} corresponds to a literal value, like a number or a string.
+    \item[App] An \texttt{App} corresponds to an application.
+        An application can be used to apply an argument to a constructor, like \texttt{App (App (Var Cons) (Lit 16)) Empty}, which corresponds to \texttt{[16]}
+        or to apply an argument to a lambda, like \texttt{Lam n ((Var n))}, which corresponds to the \texttt{id} function.
+    \item[Lam] A \texttt{Lam} corresponds to a lambda.
+        The first argument to the \texttt{Lam} constructor is the identifier of the variable that should be replaced inside the body
+        and the second argument is the body of the lambda.
+        Lambdas in Core can only have one argument, which can be seen when looking at the constructor.
+        It only contains one binding that will be replaced inside of the expression.
+        Because of this, multi-argument lambdas are split up into multiple nested lambdas during the desugaring process.
+    \item[Let] A \texttt{Let} expression can be either a recursive or a non-recursive \texttt{Let} binding.
+        The first argument to the constructor is said binding, the second is the subterm in which this binding is defined.
+    \item[Case] The \texttt{Case} constructor is used for case expressions.
+        The scrutinee is the first argument to the constructor,
+        and the fourth argument is a list of alternatives that can be selected depending on the scrutinee.
+        The second and third arguments are not important for the Substitution Stepper.
+        Similar to the lambdas,\texttt{Case} expressions are also simplified in Core.
+        They only look at the top-level constructor in an expression.
+        So a Haskell case expression that looks like the following: \texttt{case someList of Cons a (Cons b \_) -> a + b; ...}
+        will be translated to something that looks more like this: \texttt{case someList of Cons a nestedList -> (case nestedList of Cons b \_ -> a + b; ...;); ...;}
+    \item[Cast] The \texttt{Cast} constructor is used to cast certain expressions to another type,
+        but this is not relevant for the Substitution Stepper.
+    \item[Type] The \texttt{Type} constructor is used to add types to polymorphic data structures or case statements.
+        The Substitution Stepper ignores types, however, so they are also not relevant.
+    \item[Tick] \texttt{Ticks} can be used to annotate the source code and they are relevant for this project
+        since they are responsible for the coloration and highlighting of expressions.
+    \item[Coercion] The \texttt{Coerction} constructor is also not relevant for the Substitution Stepper.
+\end{description}
+
+\begin{description}
+    \item[AltCon] \texttt{AltCons} are used to indicate the type of alternative for a \texttt{Case} expression.
+        Depending on the \texttt{AltCon} different kinds of expressions will be matched.
+        The \texttt{DataCon} or \texttt{Literal} contained in the \texttt{DataAlt} or \texttt{LitAlt} respectively contain the constructor or literal that is being matched against.
+        Thus by comparing the content of the \texttt{AltCon} and the scrutinee, one can see if the alternative matches or not.
+    \item[DataAlt] A \texttt{DataAlt} is used for alternatives matching a datatype constructor.
+        For example \texttt{DataAlt Empty} could be used to match the empty list in a case expression like \texttt{case Empty of Empty -> True; Cons \_ \_ False;}.
+        In this example, both of the alternatives should be \texttt{DataAlts} since the scrutinee is a datatype constructed via a constructor.
+    \item[LitAlt] A \texttt{LitAlt} is used for alternatives matching a literal.
+        This is used for scrutinees that are numbers or strings, like \texttt{case someNumber of 42 -> True; \_ False;}.
+    \item[DEFAULT] The \texttt{DEFAULT} \texttt{AltCon} is used to match anything.
+        If the \texttt{DEFAULT} \texttt{AltCon} is reached, it matches regardless of what the scrutinee is and what comes after it.
+    \item[Alt] The \texttt{Alt} is a datatype that contains one single alternative for the \texttt{Case} expression.
+        It consists of the \texttt{AltCon}, indicating what kind of match is performed and containing the value that the scrutinee should match.
+        Additionally, in the case of a \texttt{DataAlt}, it also contains a list of variables that match the arguments to the constructor.
+        These can be used in the expression that the scrutinee is being replaced with.
+        An example of that would be: \texttt{case someList of Empty -> 0; Cons n \_ -> n;}.
+        In this example, the variable \texttt{n} would appear in the previously mentioned list and will be used to determine the result.
+        The last element contained in the \texttt{Alt} datatype is the resulting expression,
+        in case that particular alternative is selected.
+\end{description}
+
+\subsection{Translating Core back to Haskell}
+While the simplicity of Core is a big advantage during the stepping process,
+it can also be somewhat of an inconvenience,
+especially if the goal is to make Core look like regular Haskell.
+This becomes especially apparent when dealing with \texttt{Case} expressions that contain additional, nested \texttt{Case} expressions in the alternatives,
+or when dealing with nested lambdas that each have only one value.
+The nesting is not only not very aesthetically pleasing but it also makes the code harder to read.
+
+To fix this,
+the module responsible for pretty printing treats expressions like these in a special way.
+
+\subsubsection{Multi-Argument Lambdas}
+Fixing the nested single-step lambdas is pretty simple and does not require much code,
+as can be seen in Figure \ref*{fig:prettyLambda}.
+If a lambda is nested inside another lambda,
+the binding variable is displayed,
+followed by a recursive call to \texttt{prettyLam} which prints the rest of the lambda.
+Once the last nested lambda is reached,
+the arrow is displayed followed by the expression in the last lambda.
+In the end, the backslash needs to be prepended to the lambda,
+which is done by the function that called \texttt{prettyLam}.
+
+\begin{figure}[!ht]
+\begin{verbatim}
+ prettyLam :: (Pretty a, Show a) => Expr a -> Doc AnsiStyle
+ prettyLam (Lam b (Lam bn ex)) = pretty b <+> prettyLam (Lam bn ex)
+ prettyLam (Lam b ex) = pretty b <+> pretty "->" <+> prettyEx False ex
+ prettyLam _ = undefined
+\end{verbatim}
+    \caption{The function displaying nested lambdas as one}
+    \label{fig:prettyLambda}
+\end{figure}
+
+\subsubsection{Case Applications}
+Fixing the layout of the \texttt{Case} expressions inside of alternatives is a bit trickier.
+It is achieved by using mainly two functions:
+
+\begin{figure}[!ht]
+\begin{verbatim}
+ prettyAlt :: (Pretty a, Show a) => Alt a -> Doc AnsiStyle
+ prettyAlt (Alt (DataAlt dc) bs (Case _ _ _ as)) = vsep $
+                    map (concatAlt (DataAlt dc) (safeHead bs)) as
+ prettyAlt (Alt (DataAlt dc) bs ex)
+     | null bs   = hsep (pretty dc : [pretty "->", prettyEx False ex])
+                    <> pretty ";"
+     | otherwise = parens (pretty dc <> spaceBindings bs)
+                    <+> pretty "->" <+> prettyEx False ex
+ prettyAlt (Alt (LitAlt lit) [] ex) = viaShow lit <+> pretty "->"
+                    <+> (group . prettyEx False) ex <> pretty ";"
+ prettyAlt (Alt DEFAULT [] ex) = pretty "_ ->"
+                    <+> (group . prettyEx False) ex <> pretty ";"
+ ...
+\end{verbatim}
+    \caption{The function responsible for pretty printing alternatives}
+    \label{fig:prettyAlt}
+\end{figure}
+
+\begin{figure}[!ht]
+\begin{verbatim}
+ concatAlt :: (Show a, Pretty a) => AltCon -> Maybe a -> Alt a -> Doc AnsiStyle
+ concatAlt (DataAlt dc) _ (Alt ac bs (Case _ _ _ as)) = vsep $
+            map ((\doc -> pretty dc <+> doc) . concatAlt ac (safeHead bs)) as
+ concatAlt (DataAlt dc) mB (Alt ac bs ex) = pretty dc
+            <+> prettyMaybe mB <+> prettyAlt (Alt ac bs ex)
+ ...
+\end{verbatim}
+    \caption{The function responsible for concatenating case expressions with alternatives containing another case expression}
+    \label{fig:concatAlt}
+\end{figure}
+
+The function \texttt{prettyAlt} in Figure \ref*{fig:prettyAlt} checks if the expression that it contains is a \texttt{Case} expression.
+If that is the case, it delegates the pretty printing of the alternative to \texttt{concatAlt} in \ref*{fig:concatAlt}.
+Otherwise, it prints the arrow separating the LHS from the RHS and pretty prints the RHS.
+In the case of a \texttt{LitAlt}, the literal is printed before the arrow and the RHS.
+In the case of \texttt{DEFAULT}, the underscore is printed before the arrow and the RHS.
+
+\ \\
+The function \texttt{concatAlt} is responsible for combining the alternative with the other alternatives contained within the \texttt{Case} expression nested in the first alternative.
+The following Core \texttt{Case} from Figure \ref*{fig:concatAltExample} expression can be taken as an example:
+
+\begin{figure}[ht!]
+\begin{verbatim}
+    case someList of
+        Empty -> 0
+        Cons a restList -> case restList of
+                            Cons b \_ -> 2
+                            Empty -> 1
+\end{verbatim}
+    \caption{Example of a case expression nested in an alternative.}
+    \label{fig:concatAltExample}
+\end{figure}
+
+The \texttt{concatAlt} function is only concerned with the second option of the first case expression.
+First, the \texttt{DataCon} from the outermost alternative is printed out,
+which corresponds to \texttt{Cons}.
+Since the alternative contains another \texttt{Case} expression,
+the \texttt{map} function prepends the \texttt{Cons} before every option in the nested \texttt{Case}.
+The \texttt{concatAlt} function is called recursively and in this execution the \texttt{a} that was passed as argument is prepended before the alternatives in the nested case statement.
+Putting it all together, the three alternatives are combined into one single case expression,
+with the options being \texttt{Emtpy -> 0}, \texttt{Cons a (Cons b \_) -> 2}, and \texttt{Cons a Empty -> 1}.
+The resulting options can then be displayed with the outermost case expression,
+which finally results in the more Haskell-like case expression seen in Figure \ref*{fig:concatAltExampleResolved}:
+
+\begin{figure}[ht!]
+\begin{verbatim}
+ case someList of
+    Empty -> 0
+    Cons a (Cons b _) -> 2
+    Cons a Empty -> 1
+\end{verbatim}
+    \caption{The pretty-printed version of the previous example.}
+    \label{fig:concatAltExampleResolved}
+\end{figure}
+
+\ \\
+However, in order to stay consistent in both the displaying and derivation of case expressions,
+the Substitution stepper also derives these case expressions in one step,
+instead of first deriving the outer and then the inner one.
+Since it is both necessary for the pretty representation of the case expressions,
+and probably also intuitive for the user, I felt like this adjustment was justified.
+
+\subsubsection{Infix Operators}
+
+In Core, function- and operator applications are changed to prefix form.
+For most people this is unusual and it can also make it hard to read.
+Due to this,
+the Substitution Stepper is built to display operators in infix form.
+Since operators can be distinguished easily from functions due to the fact that function names start with an alphabetic character,
+it is not too hard to fix this.
+If an operator is recognized,
+the pretty printing sequence is flipped for the operator and the first argument,
+so \texttt{+ a b} becomes \texttt{a + b} by flipping the argument \texttt{a} the operator \texttt{+}.
+This can be seen by looking at the interaction of the following four functions:
+
+\begin{figure}[!ht]
+\begin{verbatim}
+ prettyEx' :: (Pretty a, Show a) => Expr a -> Doc AnsiStyle
+ prettyEx' (App a b)
+     | isOperation a = (prettyEx False . flipApp) a <+> prettyEx False b
+     | ...
+ ...
+\end{verbatim}
+    \caption{The pretty-printing function decides how to print an application based on the result of \texttt{isOperation}}
+\end{figure}
+
+\begin{figure}[!ht]
+\begin{verbatim}
+ isOperation :: Expr a -> Bool
+ isOperation (App a _) = isOperator a
+ isOperation _ = False
+ 
+ isOperator :: Expr a -> Bool
+ isOperator (Var x) = case show x of
+     '$':'c':s -> not . isAlpha $ head s
+     _ -> not . isAlpha $ head (show x)
+ isOperator (Tick _ x) = isOperator x
+ isOperator _ = False
+
+\end{verbatim}
+    \caption{Helper functions, checking if an application is an operator.}
+\end{figure}
+
+\begin{figure}[!ht]
+\begin{verbatim}
+ flipApp :: Expr a -> Expr a
+ flipApp (App a b) = App b a
+ flipApp _ = error "flipApp can only be called on Apps!"    
+\end{verbatim}
+    \caption{Helper function that is responsible for flipping the first argument and the operator.}
+\end{figure}
+
+\section{Reduction Types}
+
+After studying Core and the previous implementation it turned out that in order to step Core,
+roughly four types of reductions need to be implemented.
+In this section, they are listed and explained.
+
+\subsection{Delta Reductions}
+Delta reductions are one of the simpler types of reductions.
+In the case of Core,
+a delta reduction corresponds to replacing a function name occurring somewhere in the term with its definition.
+
+Given the following term and definitions, a delta reduction could look like this:
+
+\begin{figure}[!ht]
+\begin{verbatim}
+ data Nat = Z | S Nat
+
+ fib :: Nat -> Nat -- Fibonacci
+ fib Z = S Z
+ fib (S Z) = S Z
+ fib (S (S nat)) = fib (S nat) + fib nat
+\end{verbatim}
+    \caption{Definition of Nat and the function fib.}
+    \label{fig:deltaReductionExample}
+\end{figure}
+
+\begin{figure}[!ht]
+\begin{verbatim}
+ example :: Nat
+ example = fib (S (S Z))
+\end{verbatim}
+    \caption{Example term}
+\end{figure}
+
+\begin{figure}[!ht]
+\begin{verbatim}
+ example = (\n -> case n of
+        Z -> S Z
+        S Z -> S Z
+        S (S nat) -> fib (S nat) + fib nat) S (S Z)
+\end{verbatim}
+    \caption{The resulting term when applying a delta reduction on the previously shown example term.}
+\end{figure}
+
+It can be seen that the function name \texttt{fib} has been replaced with its definition,
+which in this case is a lambda taking one argument.
+The body of the lambda contains the logic defined in Figure \ref*{fig:deltaReductionExample}.
+
+These delta reductions are created based on derivation rules,
+which are derived from the top-level bindings found in the Haskell module.
+
+\subsection{Beta Reductions}
+Beta reductions correspond to the replacement of variables with another expression.
+Beta reductions consist of a subterm and a binding variable,
+which indicates which variable should be replaced in the contained term.
+In Core, beta reductions are mostly depicted as lambdas,
+which take the form (\texttt{Lam b ex}),
+where the \texttt{b} defines the binding variable and \texttt{ex} contains the subterm in which the replacement should happen.
+
+Beta reductions are mainly used for two purposes.
+The first one is to apply the arguments to a subexpression,
+like applying an argument to a function definition.
+For this purpose, lambdas are used.
+
+The second main purpose is in case expressions.
+For example, case expressions that capture a variable via the matching of constructors often use this variable again on the RHS of the alternative.
+Thus this captured variable replaces a certain identifier within the RHS of the application.
+For this purpose, beta reductions are used as well.
+
+\ \\
+Continuing the example from Figure \ref*{fig:deltaReductionExample} we can apply the lambda to the argument \texttt{S (S Z)}.
+Doing this beta reduction will result in the following expression:
+
+\begin{figure}[!ht]
+\begin{verbatim}
+ example = case S (S Z) of
+    Z -> S Z
+    S Z -> S Z
+    S (S nat) -> fib (S nat) + fib nat
+\end{verbatim}
+    \caption{After applying a beta reduction in the form of a lambda.}
+    \label{fig:betaReductionExample1}
+\end{figure}
+
+The lambda has now disappeared and instead of the \texttt{n} in the \texttt{case} expression the argument \texttt{S (S Z)} is contained there now.
+We can tell by comparing the alternatives to the scrutinee,
+that the third alternative has to be the one that is selected.
+The first two alternatives don't match, while the third one matches, if we substitute \texttt{nat} with Z.
+
+However, just replacing the scrutinee with \texttt{fib (S nat) + fib nat} won't do the job,
+since the \texttt{nat} on the LHS occurs in the RHS.
+This reveals the second application of beta reductions.
+The variable \texttt{nat} needs to be replaced on the RHS with the value that it captured,
+which in this case is \texttt{Z}.
+This is done by doing a beta reduction as well,
+yielding the term \texttt{fib (S Z) + fib Z}.
+
+\subsection{Case Applications}
+Case applications are probably the most complicated type of reductions currently performed by the Substitution Stepper.
+As seen in the example shown in \ref*{fig:betaReductionExample1},
+reducing a case expression involves more steps than the other types of reductions do.
+
+The first step consists of pattern-matching the scrutinee with the patterns in the alternatives,
+until one is found that matches.
+In some cases, it is fairly easy,
+for example when matching a literal or the default pattern \texttt{\_},
+since for literals,
+it is an easy equality comparison and in the case of \texttt{\_} no comparison at all.
+
+When dealing with custom datatypes,
+the constructors need to be equality-compared and the arguments to the constructor also need to be compared or captured.
+As seen in Figure \ref*{fig:betaReductionExample1},
+the Substitution Stepper needs to match the two leading \texttt{S} constructors,
+and then match the \texttt{nat} variable with \texttt{Z} and capture the value in the variable.
+This can become even more complex for constructors that have multiple arguments since more variables need to be captured.
+
+The last step performed by the case application is the previously described beta reduction that replaces the variables on the RHS with the captured values.
+
+\subsection{Let Applications}
+The last of the four reduction types can be split up into two responsibilities concerned with handling \texttt{Let} expressions.
+
+\subsubsection*{Applying a Let Binding}
+The first one is the replacement of \texttt{Vars} with the definition of previously defined let bindings.
+This also comes in two flavors, recursive and non-recursive let bindings.
+
+\paragraph*{Non-Recursive Let Bindings}
+An example of non-recursive bindings can be seen in Figure \ref*{fig:nonRecLetExample}.
+
+\begin{figure}[!ht]
+\begin{verbatim}
+    let y = Z
+    let x = S Z
+    case x of
+        Z -> 0
+        S _ -> do
+            let z = 1
+            z
+\end{verbatim}
+    \caption{An example for a non-recursive let expression}
+    \label{fig:nonRecLetExample}
+\end{figure}
+
+It is clear that the case expression cannot be reduced yet,
+as it is not in WHNF and the scrutinee \texttt{x} cannot be matched against the options.
+First, the let expression needs to be applied to the scrutinee \texttt{x}.
+The application of a let expression can be seen as a delta reduction.
+It could also be seen as a beta reduction in the case of non-recursive bindings,
+but as soon as recursive bindings are considered, problems could arise when treating it as a simple beta reduction.
+
+So when trying to apply a let binding to a specific subterm in the Substitution Stepper,
+all let bindings that are ancestors of the subterm are collected.
+From the binding, reduction rules are extracted analogous to the reduction rules extracted from the top-level bindings at the start.
+The Substitution Stepper then tries to see which rule is applicable
+and as soon as one is found it is applied to the subterm, just like a delta reduction.
+
+\ \\
+While \ref*{fig:nonRecLetExample} is a bit artificial,
+it explains very well what happens with non-recursive let bindings when they are applied.
+When trying to reduce the scrutinee \texttt{x},
+the Substitution Stepper collects the ancestor let bindings \texttt{y = Z} and \texttt{x = S Z},
+while ignoring \texttt{z = 1}, as it is not an ancestor of the scrutinee.
+
+Then, the Substitution Stepper tries to do a delta reduction with a rule that replaces a variable with value \texttt{y} with \texttt{Z},
+which fails, since the scrutinee has value \texttt{x}, not \texttt{y}.
+In the next step,
+it tries to do a delta reduction with a rule that replaces a variable with value \texttt{x} with \texttt{S Z}.
+This delta-reduction succeeds and yields the following term:
+
+\begin{figure}[!ht]
+\begin{verbatim}
+    let y = Z
+    let x = S Z
+    case S Z of
+        Z -> 0
+        S _ -> do
+            let z = 1
+            z
+\end{verbatim}
+    \caption{The let has been successfully applied to \texttt{x}}
+    \label{fig:nonRecLetExampleResolved}
+\end{figure}
+
+\paragraph*{Recursive Let Bindings}
+An example of recursive bindings can be seen in Figure \ref*{fig:recLetExample}.
+
+\begin{figure}[!ht]
+\begin{verbatim}
+    let inf = S inf -- infinity
+    case inf of
+        Z -> 0
+        S Z -> 1
+        S (S Z) -> 2
+        S (S (S _)) -> 3
+\end{verbatim}
+    \caption{An example for a recursive let binding}
+    \label{fig:recLetExample}
+\end{figure}
+
+Recursive let bindings can be very similar to non-recursive ones,
+but in the case of a \texttt{case} expression like this,
+they have to be treated quite differently.
+In Figure \ref*{fig:recLetExample},
+the binding needs to be applied to the scrutinee three times before it can be matched.
+
+\begin{figure}[!ht]
+\begin{verbatim}
+    let inf = S inf -- infinity
+    case S (S (S inf)) of
+        Z -> 0
+        S Z -> 1
+        S (S Z) -> 2
+        S (S (S _)) -> 3
+\end{verbatim}
+    \caption{The same term after applying the binding three times.}
+    \label{fig:recLetExampleApplied}
+\end{figure}
+
+When looking at Figure \ref*{fig:recLetExampleApplied} it should be clear now,
+that the last alternative is the only one that matches the scrutinee,
+thus the term results in the value \texttt{3}.
+
+\ \\
+The workings behind the scenes are not obvious when looking at the pretty, Haskell-like, representation of the Core case expressions.
+Thus it might be better to consider Figure \ref*{fig:recLetExampleDesugared} to understand what is going on here.
+
+\begin{figure}[!ht]
+\begin{verbatim}
+    let inf = S inf -- infinity
+    case inf of
+        Z -> 0
+        S a -> case a of
+            Z -> 1
+            S b -> case b of
+                Z -> 2
+                S _ -> 3
+\end{verbatim}
+    \caption{The same example for a recursive binding but this time displayed with the desugared syntax.}
+    \label{fig:recLetExampleDesugared}
+\end{figure}
+
+When looking at Figure \ref*{fig:recLetExampleDesugared} it becomes more clear why the binding needs to be applied exactly 3 times.
+The first time it is applied to match \texttt{S a}.
+\texttt{S inf} is matched with \texttt{S a},
+capturing the value \texttt{inf} in \texttt{a}.
+
+\begin{figure}[!ht]
+\begin{verbatim}
+    let inf = S inf -- infinity
+    case inf of
+        Z -> 1
+        S b -> case b of
+            Z -> 2
+            S _ -> 3
+\end{verbatim}
+    \caption{The same example after applying the binding once and reducing the outermost case expression}
+    \label{fig:recLetExampleDesugared1}
+\end{figure}
+
+The same step can be repeated,
+replacing the \texttt{inf} with \texttt{S inf} and matching it against \texttt{S b},
+which in turn captures the \texttt{inf} in \texttt{b} again.
+
+\begin{figure}[!ht]
+\begin{verbatim}
+    let inf = S inf -- infinity
+    case inf of
+        Z -> 2
+        S _ -> 3
+\end{verbatim}
+    \caption{The same example after applying the binding twice and reducing the two outermost case expressions}
+    \label{fig:recLetExampleDesugared2}
+\end{figure}
+
+By repeating the step one more time \texttt{S inf} is matched with \texttt{S \_},
+yielding the result \texttt{3}.
+
+This example also shows one of the advantages of desugaring the Haskell code.
+It is a lot easier to handle these nested case expressions as opposed to the first example seen in \ref*{fig:recLetExample}.
+
+\ \\
+The reason why the application of let bindings does not work with a simple beta reduction
+- at least with the implementation of the Substitution Stepper -
+is that due to limitations with the underlying subterm datatype,
+the beta reduction is done recursively.
+If a recursive binding is inserted during the beta reduction,
+the beta reduction will call itself again and replace the previously inserted recursive binding again.
+This will go on and on and thus create an infinite recursive loop.
+
+\subsubsection*{Removing a Let Binding}
+The second responsibility associated with let bindings is the removal of let bindings that are no longer needed.
+There are different ways to handle this.
+
+For the Substitution Stepper,
+I have chosen a very simple approach that removes a let expression if the term that it contains is simply a \texttt{Var} and the value of the \texttt{Var} is not equal to the identifier of the binding or a \texttt{Lit}.
+This allows the Substitution Stepper to be sure that the let binding cannot be applied to anything,
+thus it can be removed.
+
+Taking figure \ref*{fig:nonRecLetExampleResolved} as an example and reducing the case expression yields the following result:
+
+\begin{figure}[!ht]
+\begin{verbatim}
+    let y = Z
+    let x = S Z
+    let z = 1
+    z
+\end{verbatim}
+    \caption{The example from \ref*{fig:nonRecLetExampleResolved} where the case expression has been reduced}
+\end{figure}
+
+The binding for z can be applied to \texttt{z}, which yields the following result:
+
+\begin{figure}[!ht]
+\begin{verbatim}
+    let y = Z
+    let x = S Z
+    let z = 1
+    1
+\end{verbatim}
+    \caption{The example after applying the let binding to \texttt{z}}
+\end{figure}
+
+Once this term is reached, the binding \texttt{z = 1} cannot be applied to anything anymore as the expression contained is the literal \texttt{1}.
+When this is the case, the let binding for z can be removed, leaving only the bindings for x and y.
+The same process is applied to the bindings for x and y.
+Neither of them can apply to the literal \texttt{1},
+thus the binding for x is removed first, followed by the binding for y,
+leaving behind the final term and result \texttt{1}.
