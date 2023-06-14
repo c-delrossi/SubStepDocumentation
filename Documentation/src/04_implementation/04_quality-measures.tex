@@ -15,27 +15,20 @@ This chapter describes the various quality measures that were put in place to ma
         \item Nesting should not be deeper than 2 levels.
         \item No duplicate code. (DRY)
         \item Functions should be kept short (less than 11 lines).
-        \item Create feature branches, before every merge, tests must be run.
     \end{itemize}
     \item Formatting
     \begin{itemize}
         \item Line length should not exceed 120 characters.
-        \item Style guide: ESLint + AirBnB
-        \item Code must be auto-formatted before being committed.
-        \item Code must pass all tests before being committed.
-    \end{itemize}
-    \item Naming
-    \begin{itemize}
-        \item Function names should be verbs.
-        \item Class names should be nouns.
-        \item Longer, more descriptive names are preferred over short ones.
-        \item No abbreviations in names.
-        \item No 1-character names.
     \end{itemize}
 \end{itemize}
 
 \section{Test Concept}
 
-\section{Workflow}
+Unfortunately, a proper test concept was cut from the final product due to the limited amount of time available.
+However, during the development, some manual testing was performed.
+During the refactoring and extending of the functionality,
+the results of the automatic derivations were compared to the expected result and thus it could be verified that the changes did not break the stepping.
 
-Pipelines?
+The creation of test cases was further hindered due to the fact that the creation of \texttt{CoreExprs} is very cumbersome,
+as there is no simple constructor for that.
+
