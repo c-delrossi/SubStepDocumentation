@@ -1,7 +1,7 @@
 \chapter{Results}
 
-This chapter describes the achieved and not achieved goals, 
-which are closely related to the FR and NFRs.
+In this chapter,
+the final result is analyzed and the requirements are checked.
 
 \instructions{
     Ergebnisse der Arbeit: Was wurde erreicht, was wurde nicht erreicht? Stellen Sie einen konkreten Bezug zu
@@ -14,6 +14,501 @@ which are closely related to the FR and NFRs.
 
 \section{Functional Requirements}
 
+\subsection{FR 1}
+The user can specify functions that should not be stepped through and instead derived in a single step.
+
+\ \\
+The first requirement has not been met,
+as I have not found a possible way to reliably implement this functionality.
+This requirement is closely related to normalization,
+as the point is to skip all applications of a certain function until it does not contain that function anymore.
+
+An example that was created as a possible use case for this requirement was the \texttt{+} operator.
+
+\begin{figure}[!ht]
+\begin{verbatim}
+    data Nat = S Nat | Z
+
+    (+) :: Nat -> Nat -> Nat
+    Z + n = n
+    S m + n = m + S n
+
+    ex = (S (S (S Z))) + (S Z)
+\end{verbatim}
+    \caption{The starting term for the example of FR 1}
+    \label{fig:FR1example}
+\end{figure}
+
+The idea here was that since the \texttt{+} operator is very trivial and boring to step through due to the big amount of recursion just to add two numbers together,
+that it should be skipped instead and directly return the result (\texttt{S (S (S (S Z)))} in this case).
+
+However, due to the recursive nature of the definition of the \texttt{+} operator,
+I found this to be not possible to do nicely.
+
+While it would work for this particular example,
+it would not work for a term that does not have a normal form,
+since then the \texttt{+} operator could end up being expanded infinitely.
+
+\ \\
+Looking at the term \texttt{pure + <*> [S Z] [S (S Z)]} shows the problem in this case.
+If the function \texttt{pure} is reduced,
+the Substitution Stepper will eventually get to the \texttt{+} inside of it and try to skip it.
+But because it is not applied to enough arguments,
+it does not have a normal form.
+Instead, the \texttt{+} will be expanded over and over again, causing an endless loop (see figure \ref*{fig:FR1infiniteLoop}).
+
+\begin{figure}[!ht]
+\begin{verbatim}
+    pure +
+
+    [+]
+
+    [
+        \left right -> case left of
+            Z -> right
+            S m -> m + S right
+    ]
+
+    [
+        \left right -> case left of
+            Z -> right
+            S m -> case m of
+                Z -> S right
+                S m' -> m' + S (S right)
+    ]
+    ...
+\end{verbatim}
+    \caption{Endless recursion caused due to the term \texttt{pure +} not having a normal form}
+    \label{fig:FR1infiniteLoop}
+\end{figure}
+
+\newpage
+\subsection{FR2}
+The user can control the derivation flow in such a way, that they can skip the derivation for certain redexes interactively.
+
+\ \\
+This requirement has been met.
+It corresponds to the call command.
+Using this command the user can skip case applications and beta reductions.
+This allows the user to ignore the mostly uninteresting parts of the derivation.
+
+Since there are not many cases where a user would want to see all the detailed steps including beta reductions and case application,
+this setting has been made the default setting for the interactive derivation modes.
+
+In addition to the call command, there is also a command named normalize,
+which is taking the skipping of steps even further.
+Due to the recursive nature of the normalize command, however,
+it is not used as a default command anywhere, as it could easily cause an infinite loop if applied to a term that does not have a normal form,
+similarly to the problem described in the first FR.
+
+The following two examples from the Substitution Stepper show the difference between using the call command (figure \ref*{fig:FR2exampleCall}) and the regular step command (figure \ref*{fig:FR2exampleStep}).
+
+\begin{figure}[!ht]
+\begin{verbatim}
+$ stack exec -- corestepper-exe -m manual -F ../test/Stepped.hs -f test6
+(S (S Z)) (+) S (S Z)
+
+
+Please enter a command:
+{- Normalize (((\ds_d2Mn n_a20X -> case ds_d2Mn of
+    Z -> n_a20X;
+    (S m_a20Y) -> m_a20Y + S n_a20X
+)) (S (S Z))) (S (S Z)) -}
+
+
+(S Z) (+) S (S (S Z))
+\end{verbatim}
+\caption{Derivation using the call command}
+\label{fig:FR2exampleCall}
+\end{figure}
+
+\begin{figure}[!ht]
+\begin{verbatim}
+$ stack exec -- corestepper-exe -m manual -F ../test/Stepped.hs -f test6
+(S (S Z)) (+) S (S Z)
+
+
+Please enter a command:
+{- DeltaReduction + -}
+
+(((\ds_d2Mn n_a20X -> case ds_d2Mn of
+    Z -> n_a20X;
+    (S m_a20Y) -> m_a20Y + S n_a20X
+)) (S (S Z))) (S (S Z))
+
+
+Please enter a command:
+{- BetaReduction ds_d2Mn -}
+
+((\n_a20X -> case S (S Z) of
+    Z -> n_a20X;
+    (S m_a20Y) -> m_a20Y + S n_a20X
+)) (S (S Z))
+
+
+Please enter a command:
+{- BetaReduction n_a20X -}
+
+case S (S Z) of
+    Z -> S (S Z);
+    (S m_a20Y) -> m_a20Y + S (S (S Z))
+
+
+Please enter a command:
+{- Case Application -}
+
+(S Z) (+) S (S (S Z))
+\end{verbatim}
+\caption{Derivation using the regular step command}
+\label{fig:FR2exampleStep}
+\end{figure}
+
+Comparing the two examples shows that using the call command,
+the user can skip 4 steps (1x delta reduction, 2x beta reduction, 1x case application)
+without losing any valuable information.
+
+\newpage
+\subsection{FR 3}
+The user can step through the reduction line by line.
+
+\ \\
+This requirement has been met as well.
+It corresponds to the manual and interactive modes that are available when using the Substitution Stepper.
+Through coloring the user can see which subterm is currently selected to be derived next and using the tab key the user can shift the selection to another subterm.
+Additionally, the application indicates which redex is selected and how many redexes there are in total,
+which makes it easier for the user to navigate the selection.
+
+\begin{figure}[!ht]
+\begin{verbatim}
+$ stack exec -- corestepper-exe -m manual -v 1 -F ../test/Stepped.hs -f test
+(fib) (S (S (S (S Z))))
+
+(Subterm 1/1)
+
+
+Please enter a command:
+((fib) (S (S (S Z)))) + fib (S (S Z))
+
+(Subterm 2/3)
+
+
+Please enter a command:
+((fib (S (S Z))) + fib (S Z)) (+) fib (S (S Z))
+
+(Subterm 1/5)
+\end{verbatim}
+    \caption{Deriving the left occurrence of \texttt{fib} first.}
+    \label{fig:FR3example1}
+\end{figure}
+
+\begin{figure}[!ht]
+\begin{verbatim}
+$ stack exec -- corestepper-exe -m manual -v 1 -F ../test/Stepped.hs -f test
+(fib) (S (S (S (S Z))))
+
+(Subterm 1/1)
+
+
+Please enter a command:
+(fib (S (S (S Z)))) + (fib) (S (S Z))
+
+(Subterm 3/3)
+
+
+Please enter a command:
+(fib (S (S (S Z)))) (+) (fib (S Z)) + fib Z
+
+(Subterm 1/5)
+\end{verbatim}
+    \caption{Deriving the right occurrence of \texttt{fib} first.}
+    \label{fig:FR3example2}
+\end{figure}
+
+Figures \ref*{fig:FR3example1} and \ref*{fig:FR3example2} show the same term being derived.
+However, in the second step, the user chooses two different redexes,
+which leads to the two third steps looking different.
+
+\subsection{FR 4}
+The user can make the derivation run through to the end without requiring any interaction.
+
+\ \\
+The fourth FR is met as well.
+There are two options for the user to let the derivation run automatically.
+
+First, the user can use the automatic mode to step through the derivation without requiring any input.
+The user can specify a strategy which is then used by the Substitution Stepper to determine the sequence of reductions.
+
+\begin{figure}[!ht]
+\begin{verbatim}
+$ stack exec -- corestepper-exe -m automatic -F ../test/Stepped.hs -f testAdd
+Derive (S Z) + S Z
+--------Step 1---------
+RewriteRule: DeltaReduction +
+
+(((\ds_d4e0 n_a3sr -> case ds_d4e0 of
+    Z -> n_a3sr;
+    (S m_a3ss) -> m_a3ss + S n_a3sr
+)) (S Z)) (S Z)
+
+--------Step 2---------
+RewriteRule: BetaReduction ds_d4e0
+
+((\n_a3sr -> case S Z of
+    Z -> n_a3sr;
+    (S m_a3ss) -> m_a3ss + S n_a3sr
+)) (S Z)
+\end{verbatim}
+\end{figure}
+\begin{figure}[!ht]
+\begin{verbatim}
+--------Step 3---------
+RewriteRule: BetaReduction n_a3sr
+
+case S Z of
+    Z -> S Z;
+    (S m_a3ss) -> m_a3ss + S (S Z)
+
+
+--------Step 4---------
+RewriteRule: Case Application
+
+Z + S (S Z)
+\end{verbatim}
+\end{figure}
+\begin{figure}[!ht]
+\begin{verbatim}
+--------Step 5---------
+RewriteRule: DeltaReduction +
+
+(((\ds_d4e0 n_a3sr -> case ds_d4e0 of
+    Z -> n_a3sr;
+    (S m_a3ss) -> m_a3ss + S n_a3sr
+)) Z) (S (S Z))
+
+--------Step 6---------
+RewriteRule: BetaReduction ds_d4e0
+
+((\n_a3sr -> case Z of
+    Z -> n_a3sr;
+    (S m_a3ss) -> m_a3ss + S n_a3sr
+)) (S (S Z))
+\end{verbatim}
+\end{figure}
+\begin{figure}[!ht]
+\begin{verbatim}
+--------Step 7---------
+RewriteRule: BetaReduction n_a3sr
+
+case Z of
+    Z -> S (S Z);
+    (S m_a3ss) -> m_a3ss + S (S (S Z))
+
+
+--------Step 8---------
+RewriteRule: Case Application
+
+S (S Z)
+\end{verbatim}
+    \caption{Deriving a term using the interactive mode.}
+    \label{fig:FR4example1}
+\end{figure}
+
+\clearpage
+When using the manual derivation mode,
+the user also has the choice to make the derivation continue automatically.
+This can be seen in figure \ref*{fig:FR4example2},
+where after the first manual step the derivation is continued automatically.
+
+\begin{figure}[!ht]
+\begin{verbatim}
+$ stack exec -- corestepper-exe -m manual -v 2 -F ../test/Stepped.hs -f testAdd
+(S Z) (+) S Z
+
+(Subterm 1/1)
+
+
+Please enter a command:
+{- Normalize (((\ds_d2MJ n_a21a -> case ds_d2MJ of
+    Z -> n_a21a;
+    (S m_a21b) -> m_a21b + S n_a21a
+)) (S Z)) (S Z) -}
+
+
+Z (+) S (S Z)
+
+(Subterm 1/1)
+
+
+Please enter a command:
+\end{verbatim}
+\end{figure}
+\begin{figure}[!ht]
+\begin{verbatim}
+Derive Z + S (S Z)
+--------Step 1---------
+RewriteRule: DeltaReduction +
+
+(((\ds_d2MJ n_a21a -> case ds_d2MJ of
+    Z -> n_a21a;
+    (S m_a21b) -> m_a21b + S n_a21a
+)) Z) (S (S Z))
+
+--------Step 2---------
+RewriteRule: BetaReduction ds_d2MJ
+
+((\n_a21a -> case Z of
+    Z -> n_a21a;
+    (S m_a21b) -> m_a21b + S n_a21a
+)) (S (S Z))
+\end{verbatim}
+\end{figure}
+\begin{figure}[!ht]
+\begin{verbatim}
+--------Step 3---------
+RewriteRule: BetaReduction n_a21a
+
+case Z of
+    Z -> S (S Z);
+    (S m_a21b) -> m_a21b + S (S (S Z))
+
+--------Step 4---------
+RewriteRule: Case Application
+
+S (S Z)
+
+Derivation Finished.
+\end{verbatim}
+    \caption{Deriving a term using manual mode and then executing the continue command.}
+    \label{fig:FR4example2}
+\end{figure}
+
+\subsection{FR 5}
+The tool supports a verbose variant, that indicates which function has been applied.
+
+\ \\
+This requirement has been met as well.
+There are up to 4 verbosity levels, depending on the derivation mode.
+
+The automatic mode has two verbosity levels that satisfy the requirement.
+Verbosity level 1 does not show the justifications for the reduction that was applied,
+while verbosity level 2 does.
+
+The manual mode has four verbosity levels.
+The first two levels skip certain intermediate derivation steps according to FR 2,
+while the two last levels do not skip anything.
+In addition to that,
+the even verbosity levels show the justifications while the odd levels do not.
+
+The interactive mode has two verbosity levels.
+The justifications will always be shown,
+but the step size is configurable.
+Verbosity levels 1 and 2 skip certain derivation steps, just like in the manual derivation,
+while verbosity levels 3 and 4 do not skip anything.
+So effectively, there are only 2 levels, even though 4 can be specified.
+
+The following 4 figures \ref*{fig:FR5verbosit1}, \ref*{fig:FR5verbosit2}, \ref*{fig:FR5verbosit3}, and \ref*{fig:FR5verbosit4} show the same term being derived in manual mode.
+Only the first step is shown and each of the figures has a different verbosity level.
+
+\begin{figure}[!ht]
+\begin{verbatim}
+$ stack exec -- corestepper-exe -m manual -F ../test/Stepped.hs -f test -v 1
+(fib) (S (S (S (S Z))))
+
+(Subterm 1/1)
+
+
+Please enter a command:
+(fib (S (S (S Z)))) (+) fib (S (S Z))
+
+(Subterm 1/3)
+\end{verbatim}
+    \caption{A step using verbosity level 1. Some intermediate steps are skipped and there are no justifications.}
+    \label{fig:FR5verbosit1}
+\end{figure}
+
+\begin{figure}[!ht]
+\begin{verbatim}
+$ stack exec -- corestepper-exe -m manual -F ../test/Stepped.hs -f test -v 2
+(fib) (S (S (S (S Z))))
+
+(Subterm 1/1)
+
+
+Please enter a command:
+{- Normalize ((\ds_d2Na -> case ds_d2Na of
+    Z -> S Z;
+    S ds_d2Ni Z -> S Z;
+    S ds_d2Ni (S n_a219) -> (fib (S n_a219)) + fib n_a219
+)) (S (S (S (S Z)))) -}
+
+
+(fib (S (S (S Z)))) (+) fib (S (S Z))
+
+(Subterm 1/3)
+\end{verbatim}
+    \caption{A step using verbosity level 2. Some intermediate steps are skipped and justifications are included.}
+    \label{fig:FR5verbosit2}
+\end{figure}
+
+\begin{figure}[!ht]
+\begin{verbatim}
+$ stack exec -- corestepper-exe -m manual -F ../test/Stepped.hs -f test -v 3
+(fib) (S (S (S (S Z))))
+
+(Subterm 1/1)
+
+
+Please enter a command:
+((\ds_d2Na -> case ds_d2Na of
+    Z -> S Z;
+    S ds_d2Ni Z -> S Z;
+    S ds_d2Ni (S n_a219) -> (fib (S n_a219)) + fib n_a219
+)) (S (S (S (S Z))))
+
+(Subterm 1/4)
+\end{verbatim}
+    \caption{A step using verbosity level 3. No steps are skipped and no justifications are displayed.}
+    \label{fig:FR5verbosit3}
+\end{figure}
+
+\begin{figure}[!ht]
+\begin{verbatim}
+$ stack exec -- corestepper-exe -m manual -F ../test/Stepped.hs -f test -v 4
+(fib) (S (S (S (S Z))))
+
+(Subterm 1/1)
+
+
+Please enter a command:
+{- DeltaReduction fib -}
+
+
+((\ds_d2Na -> case ds_d2Na of
+    Z -> S Z;
+    S ds_d2Ni Z -> S Z;
+    S ds_d2Ni (S n_a219) -> (fib (S n_a219)) + fib n_a219
+)) (S (S (S (S Z))))
+
+(Subterm 1/4)
+\end{verbatim}
+    \caption{A step using verbosity level 4. No steps are skipped and justifications are displayed.}
+    \label{fig:FR5verbosit4}
+\end{figure}
+
+
+\clearpage
+\subsection{FR 6}
+The user can import user-defined files and step through functions defined in these files.
+
+\ \\
+This requirement is partially met.
+While files cannot be imported per se, a file containing a Haskell module can be specified as an argument to the Substitution Stepper.
+However, it is not currently possible to specify multiple modules.
+Due to this limitation,
+the requirement is only considered met partially.
+
+
+\clearpage
 \section{Non-Functional Requirements}
 
-\section{Screenshots}
+\section{Limitations}
