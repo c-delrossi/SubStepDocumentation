@@ -511,4 +511,80 @@ the requirement is only considered met partially.
 \clearpage
 \section{Non-Functional Requirements}
 
+\subsection{NFR 1}
+The tool is usable for people with little experience in functional programming.
+The derivation of a user-defined function takes max. one import command and one step command.
+The function is defined in one file and depends only on other functions in the same file.
+\ \\
+The first non-functional requirement has been met.
+Stepping a function automatically can be done very easily.
+The only thing that needs to be done is to execute the executable and passing file path and function name like this:
+
+\begin{figure}
+    \begin{verbatim}
+    stack exec -- corestepper-exe -F ../test/Stepped.hs -f test
+    \end{verbatim}
+    \caption{Executing the Substitution Stepper only requires passing two simple arguments}
+\end{figure}
+
+There is no further interaction required when using the automatic derivation,
+so it is very simple to use.
+There is no experience needed in order to use the application.
+
+\subsection{NFR 2}
+The tool provides an open API or CLI, to open it up to additional UIs.
+\ \\
+I would also say that the second NFR is met.
+The different derivation modes can be accessed easily.
+
+To use the Substitution Stepper with a different UI,
+the UI needs to be added to the \texttt{Manual.hs} and \texttt{Interactive.hs} files in the \texttt{src/Derivation} folder.
+The \texttt{Automatic.hs} file does not require any changes at all since it does not perform any user interaction.
+
+\ \\
+To use the automatic derivation with a different UI,
+the \texttt{doAutomaticDerivation} function can be called from the new UI.
+The printing can then be done via the \texttt{prettyDerivation} function.
+
+\ \\
+To use the manual derivation with a different UI there are two options.
+The easier option would be to rewrite the \texttt{ManualUI} module in the \texttt{src/UI} folder.
+The functions in there can be adjusted to the new UI for different displaying or prompting of terms and commands.
+
+Should that not offer enough customizability,
+another UI module could be written,
+which could then be worked into the \texttt{Manual} module in the \texttt{src/Derivation} folder.
+If it behaves similarly to the \texttt{ManualUI} module,
+then the functions in the \texttt{Manual} module can just be changed to call the new UI rather than the old one.
+Only if it is very different from the original UI in how it works would the replacement of the UI be a bit of a bigger task.
+
+\ \\
+Using the interactive derivation with a different UI can be achieved the same way as for the manual derivation but instead of modifying the \texttt{ManualUI} or \texttt{Manual} modules,
+the \texttt{InteractiveUI} and \texttt{Interactive} modules need to be adjusted.
+
+\ \\
+Since in most cases,
+it should not be too much work to adjust the UI as described above,
+I would say that the requirement is met.
+
 \section{Limitations}
+
+\subsection{Prelude}
+One of the biggest limitations of the Substitution Stepper currently is that the Prelude is not supported.
+This includes datatypes like String and Int as well as all the functions that are defined in the prelude.
+However, instances like Monad, Applicative, etc. can still be implemented and work.
+Most of the prelude can be implemented easily,
+which would also be a useful exercise for students of the Functional Programming class.
+However, there are some types that cannot be implemented too easily,
+like numerical datatypes and operations on them.
+
+\ \\
+The reason for this limitation has to do with the CoreStepper project,
+which this application is based on.
+It is currently not possible to compile expressions and functions that contain Prelude functionality to Core.
+
+\subsection{IO}
+It is currently unclear if the Substitution Stepper would be able to step impure IO functions.
+This is partially due to the fact that there is no mechanism to perform the input or output operations with,
+even if the limitation with the Prelude functionality would be resolved.
+
