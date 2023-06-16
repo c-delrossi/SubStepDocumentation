@@ -1,26 +1,220 @@
 \chapter{Conclusion \& Next Steps}
 
-\instructions{
-    Ergebnisdiskussion: In der Schlussfolgerung werden die Ergebnisse reflektiert und von Ihnen bewertet.
-    Somit wird die Zielerreichung gemessen (Abgleich mit "Aufgabenstellung" und "Ziel der Arbeit") und ein
-    Vergleich mit anderen/vorherigen Lösungen hergestellt. Die Schlussfolgerungen bilden einen wichtigen
-    Abschnitt eines Berichts und sollen daher sorgfältig ausgearbeitet sein.
+\section{Requirements}
 
-    Zudem erfolgt ein Ausblick auf mögliche Weiterentwicklungen, allfällige Verbesserungen oder neue
-    Fragenstellungen, die sich aus Ihrer Arbeit ergeben.
-    Fragen, die Sie sich selbst stellen können:
-    \begin{itemize}
-        \item Was wurde (Neues) erreicht?
-        \item Was wurde nicht oder noch nicht genügend gut erreicht?
-        \item  Was bleibt noch zu tun?
-        \item  Welche neuen Fragestellungen ergeben sich aus Ihrer Arbeit?
-    \end{itemize}
-}
+In the previous chapter \ref*{chptr:Results},
+the requirements were analyzed and checked whether they have been met or not.
+As table \ref*{tab:RequirementSummary} shows,
+most of the requirements were met.
 
-\section{Functional Requirements}
+FR1 probably requires an approach different from what has been attempted
+and FR6 could probably be implemented without too much of a struggle.
+Since the CoreStepper is already capable of loading a module and returning all the bindings in there,
+it is reasonable to assume that one could use that multiple times on different modules to get all bindings defined across all the modules.
 
-\subsection{Non-Functional Requirements}
+\begin{table}[ht!]
+    \makebox[\textwidth][c]{
+        \begin{tabular}{ |p{3cm} |p{3cm} |}
+            \hline
+            \textbf{Requirement} & \textbf{Status} \\ \hline
+            \color{BrickRed} FR  1 & \color{BrickRed} Not met \\ \hline
+            \color{Green}    FR  2 & \color{Green}    Met \\ \hline
+            \color{Green}    FR  3 & \color{Green}    Met \\ \hline
+            \color{Green}    FR  4 & \color{Green}    Met \\ \hline
+            \color{Green}    FR  5 & \color{Green}    Met \\ \hline
+            \color{Orange}   FR  6 & \color{Orange}   Partially met \\ \hline
+            \color{Green}    NFR 1 & \color{Green}    Met \\ \hline
+            \color{Green}    NFR 2 & \color{Green}    Met \\ \hline
+        \end{tabular}
+    }
+    \caption{Summary of which requirements have been met and which have not.}
+    \label{tab:RequirementSummary}
+\end{table}
+
+Originally the MVP was planned to contain FR1, FR3, FR4, FR5, and FR6.
+Despite FR1 not being met, I would consider the MVP being reached.
+I would say that FR1 is not as important as FR2.
+So I would redefine the MVP to contain FR2, FR3, FR4, FR5, and FR6.
+
+
+\ \\
+This has a couple of reasons.
+First of all,
+the two requirements are very similar.
+In essence, they have the same responsibility.
+Both requirements include functionality that happens in the background.
+However, the functionality described by FR1 does not happen automatically.
+The user needs to manually add functions that should be skipped.
+This makes the usage of FR1 more complicated.
+
+On the other hand, in order to make use of the functionality described in FR2 the user does not have to do anything.
+For both the interactive and manual derivation modes,
+the skipping of uninteresting steps is the default behavior.
+This, in my opinion, is already a big advantage over the functionality described in FR1.
+
+
+\ \\
+Secondly,
+when the requirements for the Substitution Stepper were created,
+FR1 was counted towards the MVP because it seemed easier to implement than FR2,
+which lead to it being prioritized more.
+During the implementation,
+ it became clear that FR2 would be easier to implement than FR1,
+which is why the priorities have shifted.
+
+\ \\
+For these reasons, I have decided to implement FR2 before FR1,
+even though originally FR1 was planned to be part of the MVP, not FR2.
 
 \section{Reflection}
+The goal of this thesis was to improve the usability of the Substitution Stepper.
+In the end,
+the thesis was not only limited to usability but included also a bit of a redesign of the stepping functionality.
+Due to change and expansion of scope,
+some requirements that were originally created could not be met.
+
+\ \\
+During this thesis,
+advances, like the ability to step instance functions, were made,
+thus reducing the limitations of the Substitution Stepper.
+
+The redesign of the stepping functionality also came with the advantage of being theoretically able to step other languages that are not Haskell,
+like the Lambda Calculus.
+It is possible now to add new steppable languages with relatively low effort,
+since the user interaction does not depend on the stepped language.
+Things like the highlighting of subterms and selection of subterms to derive don't have to be implemented for new languages.
+This can greatly reduce the effort that is needed to execute a project similar to this in the future.
+
+\ \\
+Despite not all the requirements being met,
+the result of the thesis is a usable application that allows the user to step through Haskell code.
+The most important requirements for a working product were met and I am confident that the application would prove useful to someone learning Haskell.
+For this reason I would say that the main goal of the thesis was reached.
+The following section will provide some ideas for the next steps that could further improve the Substitution Stepper.
+
+\ \\
+what done differently?
+- subterm (+ annotations)
+While I consider this thesis a success,
+there are still some things that I would have adjusted in retrospect.
+
+\ \\
+For starters,
+I would probably adjust the \texttt{Subterm} data structure a bit.
+The way annotations are handled currently is a bit more complicated than it needs to be.
+Instead of making the stepped terms handle annotations themselves,
+I would make the \texttt{Subterm} data structure handle the annotations.
+
+By doing this,
+the \texttt{Highlightable} class would not have to be implemented by every single term structure that is being stepped.
+It could be implemented using only the \texttt{Subterm} data structure.
+Additionally,
+one would not have to worry about the annotations changing the actual position of the subterm,
+which is something that could happen if the annotations are not implemented properly.
+
+In short: Making the annotations part of the \texttt{Subterm} could help reduce code duplication, and in general,
+the amount of code that needs to be written to add another term structure to the Substitution Stepper.
+
+\ \\
+Another change I would do is to add some kind of UI interface that allows the modules responsible for the derivation to be decoupled from the UI modules.
+This change is described in subsection \ref*{subsect:UIInterface}.
+
 
 \section{Next Steps}
+
+This section proposes adjustments or expansions of the Substitution Stepper that could be done when continuing development on this project.
+The adjustments/expansions are not listed in any particular order.
+
+\subsection{Support for the Prelude}
+One of the probably most impactful adjustments would be to add support for the Prelude.
+Since the limitation of not being able to use the data types defined in the prelude is quite a big handicap,
+it would make sense to work on this first.
+
+Considering that especially the numerical data types are used often in the Functional Programming class to demonstrate functions like sum, foldl/foldr, etc.
+it would be very nice for the students using this tool during class to be able to use them.
+Another important concept of Haskell, which is currying, could not be demonstrated either,
+since tuples are not supported either.
+And from my experience, functions like (un)curry or flip were the functions that most students struggled with a bit, besides Monads and Applicatives.
+
+Having to implement your own data type is a bit of a big hurdle at the start.
+Especially data types like \texttt{data Nat = S Nat | Z} are hard to understand when starting out with functional programming.
+
+\ \\
+For these reasons,
+I would strongly recommend making this a priority when continuing development on the Substitution Stepper.
+
+
+\subsection{Collapsing/Shortening of (Sub)terms}
+Collapsing or shortening (sub)terms was originally also a desired functionality.
+However, it did not make the list of requirements as it was not prioritized highly enough.
+During the development of the Substitution Stepper there was not enough time to add additional requirements,
+which is why it did not make the list later either.
+
+Despite this,
+being able to shorten a term would be very useful,
+especially since some terms can get very long.
+
+\ \\
+An idea for how to implement this was to let the user manually choose a subterm and offering them a command with which they could replace the whole subterm with a custom name.
+This would be somewhat simple to implement as it does not require any 'intelligence' on the side of the application.
+In an earlier iteration of the Substitution Stepper the \texttt{mode} command was used to switch between the selection of redexes only or the selection of any arbitrary subterm.
+It would be imaginable to bring back this functionality and to add a \texttt{rename} or \texttt{replace} command that would replace the selected subterm with the specified name.
+
+This could be a way to make the term shorter,
+however it might not be an ideal approach as it requires additional user interaction,
+which might be a bit cumbersome for the user.
+
+Another problem with this kind of approach is that in long terms there is an exponentially larger amount of subterms,
+which could make the selection of subterms even more cumbersome if no better way is found besides using the tab key.
+
+\ \\
+The collapsing or shortening of (sub)terms could maybe also be done automatically,
+however,
+I have not been able to come up with an idea on how to do that.
+
+\subsection{Simplification of the UI modules}
+\label{subsect:UIInterface}
+To simplify code and prevent duplication,
+maybe a \texttt{UI} class could be created that is used in the \texttt{Derivation.Manual} and \texttt{Derivation.Interactive} modules.
+This could allow these modules to call UI functions while still remaining independent of the \texttt{ManualUI} and \texttt{InteractiveUI} modules.
+This would probably be better practice,
+as it would also make it easier to replace the UI,
+since the \texttt{Derivation.Manual} and \texttt{Derivation.Interactive} modules could be left unchanged.
+
+I have tried to create a UI class that acts as an interface between the UI modules and the Derivation modules.
+I might have taken the wrong approach there,
+as I was not able to implement it in a sufficiently elegant way.
+
+\subsection{Improvements to Pretty Printing}
+There are still some improvements that could be made to the pretty printing of the Core expressions.
+Especially when it comes to operator precedence and the placement of line breaks in the CLI.
+
+The Substitution Stepper currently disregards operator precedence completely as I have not gotten to look into that yet.
+The placement of line breaks is not perfected either,
+as sometimes it can look a bit confusing when the terms get too long.
+
+Overall, this would be an improvement that is worth implementing.
+It would make it easier for users to read and understand what is going on.
+
+\subsection{Printing Terms via Show}
+During the development of the Substitution Stepper there was an idea that could help the readability of the terms greatly.
+The idea was to display data types that implement the Show class via show, instead of showing the constructors.
+This however was not possible due to the limitation that the Prelude - and thus strings - are not supported currently.
+
+But even if this limitation is resolved,
+it might still not be possible to implement this idea.
+To be able to implement this idea,
+the Substitution Stepper needs to know the type of an expression before attempting to display it via show.
+Since the Substitution Stepper currently ignores types,
+some changes might be needed to enable this.
+If the Show instance is constrained to f.ex. another type needing to implement Show as well,
+the implementation of this feature might become very complex.
+
+\subsection{Implementation of different Languages}
+It might be interesting to implement additional languages that can be derived by the Substitution Stepper.
+For example,
+the Lambda Calculus language might be interesting for the Functional Programming class,
+as it is also part of the course.
+Considering that there is already a LambdaCalculator project used during the course,
+this might not be necessary.
+Though I could imagine that it might be convenient to have the capability to step Haskell and Lambda Calculus in the same application.

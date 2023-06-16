@@ -1,4 +1,5 @@
 \chapter{Results}
+    \label{chptr:Results}
 
 In this chapter,
 the final result is analyzed and the requirements are checked.
@@ -567,28 +568,6 @@ Since in most cases,
 it should not be too much work to adjust the UI as described above,
 I would say that the requirement is met.
 
-\section{Summary of Requirements}
-
-\begin{table}[ht!]
-    \makebox[\textwidth][c]{
-        \begin{tabular}{ |p{3cm} |p{3cm} |}
-            \hline
-            \textbf{Requirement} & \textbf{Status} \\ \hline
-            \color{BrickRed} FR  1 & \color{BrickRed} Not met \\ \hline
-            \color{Green}    FR  2 & \color{Green}    Met \\ \hline
-            \color{Green}    FR  3 & \color{Green}    Met \\ \hline
-            \color{Green}    FR  4 & \color{Green}    Met \\ \hline
-            \color{Green}    FR  5 & \color{Green}    Met \\ \hline
-            \color{Orange}   FR  6 & \color{Orange}   Partially met \\ \hline
-            \color{Green}    NFR 1 & \color{Green}    Met \\ \hline
-            \color{Green}    NFR 2 & \color{Green}    Met \\ \hline
-        \end{tabular}
-    }
-    \caption{Summary of which requirements have been met and which have not.}
-    \label{tab:RequirementSummary}
-\end{table}
-
-
 \section{Limitations}
 
 \subsection{Prelude}
@@ -610,3 +589,36 @@ It is currently unclear if the Substitution Stepper would be able to step impure
 This is partially due to the fact that there is no mechanism to perform the input or output operations with,
 even if the limitation with the Prelude functionality would be resolved.
 
+\section{Known Issues}
+
+\subsection{LeftmostInnermost Strategy}
+The leftmost innermost derivation strategy does not work as expected.
+Due to the fact that function applications and operations are not saved infix in the Core representation,
+the implementation for the leftmost innermost derivation Strategy is a bit faulty.
+
+The implementation assumes that the arguments to a function/operation are a (in)direct child of the function/operation.
+This is not the case in Core.
+The second argument for the operation is a sibling of the operation in Core representation, not a child.
+This causes the operation to be perceived as nested more deeply than the argument,
+which can cause infinite recursion in the worst case when used with the automatic derivation mode.
+
+This issue still needs to be looked into,
+to get the ordering right.
+
+\subsection{Errors when using Low Verbosity}
+When using a low verbosity level (1 or 2) during manual or interactive derivation,
+some terms containing let bindings might erroneously indicate that they cannot be derived, 
+while in fact,
+they should be derivable.
+
+The same applies when using the call command on a term containing a let binding,
+as in the background,
+stepping at low verbosity and using the call command are the same operation.
+
+The reason for this issue is not known yet and needs to be looked into.
+
+
+\subsection{Normalization}
+The normalization command when using manual derivation does not work as intended yet.
+It does not always fully normalize the term and stops in seemingly random places.
+The cause behind this issue is not clear yet and needs to be looked into.
