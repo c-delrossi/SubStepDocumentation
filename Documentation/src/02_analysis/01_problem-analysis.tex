@@ -5,7 +5,7 @@ It describes the findings and problems that were encountered and describes how t
 \section{Understanding Core}
 Before Haskell code is transformed into byte- or machine code,
 identifiers are renamed to unique identifiers, types are checked and the code is desugared and simplified.
-These operations result in Core code, which is the code that the application is built to step.
+These operations result in Core code, which is the code that the Substitution Stepper is built to step.
 This section highlights the advantages and drawbacks of stepping Core code,
 shows the differences between Haskell code and Core code,
 and explains what the different expressions mean in Core.
@@ -155,49 +155,43 @@ which is done by the function that called \texttt{prettyLam}.
 
 \subsubsection{Case Applications}
 Fixing the layout of the \texttt{Case} expressions inside of alternatives is a bit trickier.
-It is achieved by using mainly two functions:
+It is achieved by using the prettyAlt function:
 
 \begin{figure}[!ht]
 \begin{verbatim}
- prettyAlt :: (Pretty a, Show a) => Alt a -> Doc AnsiStyle
- prettyAlt (Alt (DataAlt dc) bs (Case _ _ _ as)) = vsep $
-                    map (concatAlt (DataAlt dc) (safeHead bs)) as
- prettyAlt (Alt (DataAlt dc) bs ex)
-     | null bs   = hsep (pretty dc : [pretty "->", prettyEx False ex])
-                    <> pretty ";"
-     | otherwise = parens (pretty dc <> spaceBindings bs)
-                    <+> pretty "->" <+> prettyEx False ex
- prettyAlt (Alt (LitAlt lit) [] ex) = viaShow lit <+> pretty "->"
-                    <+> (group . prettyEx False) ex <> pretty ";"
- prettyAlt (Alt DEFAULT [] ex) = pretty "_ ->"
-                    <+> (group . prettyEx False) ex <> pretty ";"
- ...
+prettyAlt :: (Pretty a, Show a) => Doc AnsiStyle -> Alt a -> Doc AnsiStyle
+prettyAlt prefix (Alt (DataAlt dc) bs (Case _ _ _ as))
+    | null bs = vsep $
+        map (prettyAlt (prefix <+> pretty dc)) as
+    | otherwise = vsep $
+        map (prettyAlt (prefix <+> pretty dc <+>
+        (hsep . map pretty . filter (isUpper . head . show))
+        bs)) as
+prettyAlt prefix (Alt (DataAlt dc) bs ex)
+    | null bs   =
+        hsep (prefix <+> pretty dc : [pretty "->", prettyEx False ex]) <> pretty ";"
+    | otherwise =
+        parens (prefix <+> pretty dc <+> hsep (map pretty bs))
+        <+> pretty "->" <+> prettyEx False ex
+prettyAlt prefix (Alt (LitAlt lit) [] ex) =
+    prefix <+> viaShow lit <+> pretty "->" <+> (group . prettyEx False) ex <> pretty ";"
+prettyAlt prefix (Alt DEFAULT [] ex) =
+    prefix <+> pretty "_ ->" <+> (group . prettyEx False) ex <> pretty ";"
+...
 \end{verbatim}
     \caption{The function responsible for pretty printing alternatives}
     \label{fig:prettyAlt}
 \end{figure}
 
-\begin{figure}[!ht]
-\begin{verbatim}
- concatAlt :: (Show a, Pretty a) => AltCon -> Maybe a -> Alt a -> Doc AnsiStyle
- concatAlt (DataAlt dc) _ (Alt ac bs (Case _ _ _ as)) = vsep $
-            map ((\doc -> pretty dc <+> doc) . concatAlt ac (safeHead bs)) as
- concatAlt (DataAlt dc) mB (Alt ac bs ex) = pretty dc
-            <+> prettyMaybe mB <+> prettyAlt (Alt ac bs ex)
- ...
-\end{verbatim}
-    \caption{The function responsible for concatenating case expressions with alternatives containing another case expression}
-    \label{fig:concatAlt}
-\end{figure}
-
 The function \texttt{prettyAlt} in Figure \ref*{fig:prettyAlt} checks if the expression that it contains is a \texttt{Case} expression.
-If that is the case, it delegates the pretty printing of the alternative to \texttt{concatAlt} in \ref*{fig:concatAlt}.
-Otherwise, it prints the arrow separating the LHS from the RHS and pretty prints the RHS.
+If that is the case, it pretty-prints the constructors contained in the alternative,
+before calling itself recursively on the alternatives of the nested case.
+This concatenates all the constructors of the nested alternatives and allows them to look like one alternative for the top-level case expression.
+Otherwise, it prints the variables that are being matched against, the arrow separating the LHS from the RHS and pretty prints the RHS.
 In the case of a \texttt{LitAlt}, the literal is printed before the arrow and the RHS.
 In the case of \texttt{DEFAULT}, the underscore is printed before the arrow and the RHS.
 
 \ \\
-The function \texttt{concatAlt} is responsible for combining the alternative with the other alternatives contained within the \texttt{Case} expression nested in the first alternative.
 The following Core \texttt{Case} from Figure \ref*{fig:concatAltExample} expression can be taken as an example:
 
 \begin{figure}[ht!]
@@ -212,12 +206,11 @@ The following Core \texttt{Case} from Figure \ref*{fig:concatAltExample} express
     \label{fig:concatAltExample}
 \end{figure}
 
-The \texttt{concatAlt} function is only concerned with the second option of the first case expression.
 First, the \texttt{DataCon} from the outermost alternative is printed out,
 which corresponds to \texttt{Cons}.
 Since the alternative contains another \texttt{Case} expression,
 the \texttt{map} function prepends the \texttt{Cons} before every option in the nested \texttt{Case}.
-The \texttt{concatAlt} function is called recursively and in this execution the \texttt{a} that was passed as argument is prepended before the alternatives in the nested case statement.
+The \texttt{prettyAlt} function is called recursively and in this execution the \texttt{a} that was passed as argument is prepended before the alternatives in the nested case statement.
 Putting it all together, the three alternatives are combined into one single case expression,
 with the options being \texttt{Emtpy -> 0}, \texttt{Cons a (Cons b \_) -> 2}, and \texttt{Cons a Empty -> 1}.
 The resulting options can then be displayed with the outermost case expression,
@@ -256,9 +249,11 @@ This can be seen by looking at the interaction of the following four functions:
 
 \begin{figure}[!ht]
 \begin{verbatim}
- prettyEx' :: (Pretty a, Show a) => Expr a -> Doc AnsiStyle
- prettyEx' (App a b)
-     | isOperation a = (prettyEx False . flipApp) a <+> prettyEx False b
+ prettyEx' :: (Pretty a, Show a) => Bool -> Expr a -> Doc AnsiStyle
+ prettyEx' needsParens (App a b)
+     | isOperation a = if needsParens
+         then parens $ (prettyEx False . flipApp) a <+> prettyEx False b
+         else (prettyEx False . flipApp) a <+> prettyEx False b
      | ...
  ...
 \end{verbatim}
@@ -412,7 +407,7 @@ The last step performed by the case application is the previously described beta
 \subsection{Let Applications}
 The last of the four reduction types can be split up into two responsibilities concerned with handling \texttt{Let} expressions.
 
-\subsubsection*{Applying a Let Binding}
+\subsubsection{Applying a Let Binding}
 The first one is the replacement of \texttt{Vars} with the definition of previously defined let bindings.
 This also comes in two flavors, recursive and non-recursive let bindings.
 
@@ -457,7 +452,7 @@ Then, the Substitution Stepper tries to do a delta reduction with a rule that re
 which fails, since the scrutinee has value \texttt{x}, not \texttt{y}.
 In the next step,
 it tries to do a delta reduction with a rule that replaces a variable with value \texttt{x} with \texttt{S Z}.
-This delta-reduction succeeds and yields the following term:
+This delta-reduction succeeds and yields the term shown in \ref*{fig:nonRecLetExampleResolved}
 
 \begin{figure}[!ht]
 \begin{verbatim}
@@ -531,7 +526,7 @@ Thus it might be better to consider Figure \ref*{fig:recLetExampleDesugared} to 
     \label{fig:recLetExampleDesugared}
 \end{figure}
 
-When looking at Figure \ref*{fig:recLetExampleDesugared} it becomes more clear why the binding needs to be applied exactly 3 times.
+When looking at Figure \ref*{fig:recLetExampleDesugared} it becomes more clear why the binding needs to be applied exactly three times.
 The first time it is applied to match \texttt{S a}.
 \texttt{S inf} is matched with \texttt{S a},
 capturing the value \texttt{inf} in \texttt{a}.
@@ -579,7 +574,7 @@ If a recursive binding is inserted during the beta reduction,
 the beta reduction will call itself again and replace the previously inserted recursive binding again.
 This will go on and on and thus create an infinite recursive loop.
 
-\subsubsection*{Removing a Let Binding}
+\subsubsection{Removing a Let Binding}
 The second responsibility associated with let bindings is the removal of let bindings that are no longer needed.
 There are different ways to handle this.
 
