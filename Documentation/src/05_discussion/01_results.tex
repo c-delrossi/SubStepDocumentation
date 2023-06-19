@@ -622,3 +622,30 @@ The reason for this issue is not known yet and needs to be looked into.
 The normalization command when using manual derivation does not work as intended yet.
 It does not always fully normalize the term and stops in seemingly random places.
 The cause behind this issue is not clear yet and needs to be looked into.
+
+\subsection{Invisible Beta Reductions}
+Some functions in Core require types as arguments.
+This is due to the explicit typing used in Core.
+Some generic functions need to take types as arguments so the explicit typing works in later derivation steps aswell.
+I did not want to display types,
+because I think that they just clutter up the display.
+This, however,
+causes some lambdas to be applied to "invisible" arguments.
+In fact,
+they are applied to the types,
+but the types are invisible to the user.
+
+This might be confusing,
+but it is necessary.
+While one could remove the types from the terms,
+there are lambdas that expect a type as an argument
+and there is no way to distinguish these lambdas from other lambdas.
+So if one were to remove the type but leave the lambda in there,
+it would result in a lambda that cannot be further reduced,
+since it is missing its argument.
+
+Luckily,
+this is only a problem when using the most verbose modes during stepping.
+If a mode with lower verbosity is used,
+this problem will not be noticeable at all.
+

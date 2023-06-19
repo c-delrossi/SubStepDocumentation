@@ -93,8 +93,6 @@ For this reason I would say that the main goal of the thesis was reached.
 The following section will provide some ideas for the next steps that could further improve the Substitution Stepper.
 
 \ \\
-what done differently?
-- subterm (+ annotations)
 While I consider this thesis a success,
 there are still some things that I would have adjusted in retrospect.
 
@@ -184,6 +182,30 @@ since the \texttt{Derivation.Manual} and \texttt{Derivation.Interactive} modules
 I have tried to create a UI class that acts as an interface between the UI modules and the Derivation modules.
 I might have taken the wrong approach there,
 as I was not able to implement it in a sufficiently elegant way.
+
+\subsection{UI State}
+\label{subsect:UIState}
+Adding something like a UI State to the UI types might also prove beneficial.
+The UI State could for example keep track of how many lines have been written,
+in order to be able to erase them safely and reliably.
+
+The current implementation is not very elegant,
+as it re-computes the length of the previous prompt and then erases that amount of lines.
+This could potentially be an error-prone approach,
+while the approach using the UI State is probably safe.
+
+I could also imagine the UI State keeping track of the current CompletionFunc.
+This might allow for the usage of multiple completion functions during runtime.
+For example, if no function is specified in the command line arguments,
+the application could prompt the user to input the function name,
+and provide completion support for the function names when doing so.
+
+And as soon as the derivation process starts,
+the application could switch the completion function and provide the usual completion function that cycles the selection of redexes.
+
+\ \\
+This change could probably be done in one go together with the simplification of the UI modules,
+improving the overall cleanliness of the UI code.
 
 \subsection{Improvements to Pretty Printing}
 There are still some improvements that could be made to the pretty printing of the Core expressions.
