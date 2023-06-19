@@ -1,0 +1,70 @@
+\chapter{Extensibility of the Substitution Stepper}
+A secondary goal when creating the Substitution Stepper was to create a stepping application that can be used for more than just Haskell.
+For this, the stepping functionality was kept as generic as possible.
+This chapter describes how one could approach the addition of a new language that should be stepped.
+
+\section{Implementing the Show/Pretty Class}
+The Substitution Stepper requires the terms to be pretty printable via the \texttt{pretty} function defined in the Prettyprinter package,
+as well as transformable into strings via show.
+
+The requirement for Show could be lifted,
+but that would require removing the showTerm command.
+That should however not have too big of an impact on the usability.
+
+\section{Implementing the Term Class}
+The first step when adding a new language to step,
+should be to implement the Term Class,
+as it is used everywhere across the code.
+
+When adding a structure that keeps track of annotations,
+it is important that the annotation does not change the position of the contained terms.
+Other than that there is not much to it and implementing the Term class should be quite simple.
+
+\section{Implementing the Reducible Class}
+The Reducible class needs to be implemented,
+in order to be able to step the term.
+
+\section{Optional: Implementing the Normalizable Class}
+The Normalizable class can be useful if the derivation of a term should hide some steps that are not really interesting.
+But it is not necessary to do that.
+If this functionality is not desired,
+it might be best to implement \texttt{getNormalizableTerm},
+but rather than performing some changes to the term,
+it can be wrapped in a Just and returned.
+Alternatively,
+the getNormalizableTerm function can also just always return Nothing.
+
+\section{Optional: Implementing Highlightable}
+The Highlightable is also not essential to the derivation.
+However, it is used to color the selection and diff during the manual derivation.
+If only the automatic derivation functionality is desired,
+then the Highlightable class can be implemented with bogus functions,
+like \texttt{annotateTerm = \\\_ -> id}, \texttt{combineAnnotations = \\\_ -> id},
+\texttt{highlight = pretty}, and \texttt{unAnnotateTerm = id}.
+
+\section{Setting up the Derivation}
+Once the above classes have been implemented,
+the derivation can be set up and then executed.
+
+At first, if any type of delta reduction is supported,
+the rules need to be created.
+The rules should have the following type: \texttt{type RewriteRule t = (Subterm t -> Maybe (t, RuleDescription))}.
+
+Once all rules are created,
+the functions that execute the derivation can be called.
+These function are: \texttt{doAutomaticDerivation},
+\texttt{doManualDerivation},
+and \texttt{doInteractiveDerivation}.
+
+When all of this is done,
+the new language is ready to be stepped.
+
+\section{Conclusion}
+It is fairly simple to add different languages to the Substitution Stepper.
+The most challenging task is probably to implement the Reducible class and maybe create the RewriteRules, which depends heavily on the language added.
+The other parts are quite simple.
+
+Since there is not as much code to be written for the addition of a new language,
+a lot of time can be saved if a similar project is attempted again.
+
+Thus, I would say that the secondary goal of being extendible has been reached.
