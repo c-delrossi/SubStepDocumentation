@@ -54,20 +54,12 @@ It corresponds to \texttt{pure (+) <*> [1,2] <*> [3,4]}
 \end{figure}
 \begin{figure}
     \includegraphics[width=1\textwidth]{resources/applicative_part_6.PNG}
-\end{figure}
-\begin{figure}
-    \includegraphics[width=1\textwidth]{resources/applicative_part_7.PNG}
-\end{figure}
-\begin{figure}
-    \includegraphics[width=1\textwidth]{resources/applicative_part_8.PNG}
-\end{figure}
-\begin{figure}
-    \includegraphics[width=1\textwidth]{resources/applicative_part_7.PNG}
     \caption{The third example, equivalent to \texttt{pure (+) <*> [1,2] <*> [3,4]}}
 \end{figure}
 
 
 \clearpage
+\section{Example 4}
 The fourth example needed to make a slightly bigger change again,
 since it is using the Nat datatype as well.
 Since division is harder to implement on the Nat datatype,
@@ -85,8 +77,5 @@ even though different operations and datatypes are used.
 \end{figure}
 \begin{figure}
     \includegraphics[width=1\textwidth]{resources/bind_part_2.PNG}
-\end{figure}
-\begin{figure}
-    \includegraphics[width=1\textwidth]{resources/bind_part_3.PNG}
     \caption{The fourth example, equivalent to \texttt{\{do n <- 5; m <- 3; safeSub n m\}}}
 \end{figure}
