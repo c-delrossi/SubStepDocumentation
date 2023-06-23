@@ -24,11 +24,35 @@ This chapter describes the various quality measures that were put in place to ma
 
 \section{Test Concept}
 
-Unfortunately, a proper test concept was cut from the final product due to the limited amount of time available.
-However, during the development, some manual testing was performed.
-During the refactoring and extending of the functionality,
-the results of the automatic derivations were compared to the expected result and thus it could be verified that the changes did not break the stepping.
+Due to the limited amount of time available, a proper test concept could not be created.
+However, to ensure that the most important functionalities (i.e. the stepping functionalities) work,
+some tests have been created.
 
-The creation of test cases was further hindered due to the fact that the creation of \texttt{CoreExprs} is very cumbersome,
-as there is no simple constructor for that.
+The test log can be seen in \ref*{fig:testlog}.
+For the testing, the \href{https://hackage.haskell.org/package/hspec}{hspec} package has been used.
 
+\subsection{Unit Tests}
+The \texttt{caseSpec}, \texttt{deltaSpec}, and \texttt{betaSpec} suites perform unit tests on the respective reduction functions.
+These tests make sure that the reduction functions operate as expected.
+
+\subsection{System Tests}
+The \texttt{resultSpec} suite contains some system tests that compare the output of some test functions to the expected output.
+These tests make sure that the reductions happen as expected.
+
+\subsection{Difficulties during Testing}
+During the testing process, some difficulties were encountered.
+The main problem is that the identifiers for \texttt{Var}s are not always the same.
+They can change between the execution of tests,
+which makes the tests not repeatable.
+
+To fix this issue,
+instead of doing a full comparison,
+only the parts between the \texttt{Var}s are compared.
+The whole term is still tested,
+but it is broken up into smaller comparisons instead of one large comparison comparing the whole term.
+
+\begin{figure}[!ht]
+    \includegraphics[width=0.75\textwidth]{resources/Tests.PNG}
+    \caption{The test log}
+    \label{fig:testlog}
+\end{figure}
